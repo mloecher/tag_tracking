@@ -1,7 +1,7 @@
 import numpy as np
-from pygrid3.c_grid import c_grid, c_igrid
-from pygrid3.grid_kernel import GridKernel
-from pygrid3.utils import roundup4, zeropad, crop, check_traj_dens
+from .c_grid import c_grid, c_igrid
+from .grid_kernel import GridKernel
+from .utils import roundup4, zeropad, crop, check_traj_dens
 from time import time
 import os
 
