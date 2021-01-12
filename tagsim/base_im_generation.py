@@ -394,7 +394,7 @@ def get_random_image(basepath, NN=256, seed=-1):
     pics = []
     for root, dirnames, filenames in os.walk(basepath):
         for filename in filenames:
-            if filename.endswith((".ppm", ".jpg")):
+            if filename.endswith((".ppm", ".jpg", ".JPEG")):
                 pics.append(os.path.join(root, filename))
 
     if seed >= 0:
