@@ -17,15 +17,16 @@ from .pygrid_internal import pygrid as pygrid
 from .pygrid_internal import c_grid as c_grid
 from .pygrid_internal import utils as pygrid_utils
 
-def gen_tag_data_v2(ke=0.15, seed=-1, Nt=25, Nt0 = 25, inflow_range=None, fixed_input=None,
+def get_full_motion_im(ke=0.15, seed=-1, Nt=25, Nt0 = 25, inflow_range=None, fixed_input=None,
                     beta_lims = [0, 40], blur_chance=0.0, noise_scale = 0.0, basepath = "./image_db/",
+                    SNR_range = (10, 30),
                     mode = 'gridtag', use_gpu=False, N_im = 256, do_density = True,
-                    random_pts = False, new_sim = False):
+                    random_pts = False, new_sim = True):
 
     # We can gived fixed inputs here rather than calling the random generator
     if fixed_input is None:
         r, s, t1, t2, final_mask, r_a, r_b, theta, t_sim0, img0, inflow_mask, xmod, ymod, descaler = grab_random_model(
-            seed=seed, inflow_range=inflow_range, Nt = Nt0, basepath = im_library
+            seed=seed, inflow_range=inflow_range, Nt = Nt0, basepath = basepath
         )
     else:
         r, s, t1, t2, final_mask, r_a, r_b, theta, t_sim0, img0, inflow_mask, xmod, ymod, descaler = fixed_input
@@ -177,8 +178,7 @@ def gen_tag_data_v2(ke=0.15, seed=-1, Nt=25, Nt0 = 25, inflow_range=None, fixed_
         dd = get_dens(acqs0[0][0], use_gpu = use_gpu)
         dens_mod = np.median(dd)
 
-    noise_range = [4, 16]
-    noise_scale = np.random.rand() * (noise_range[1] - noise_range[0]) + noise_range[0]
+    noise_scale = 0.3*256*256/N_im/np.random.uniform(SNR_range[0], SNR_range[1])
 
     kaiser_range = [2,6]
     kaiser_beta = np.random.rand() * (kaiser_range[1] - kaiser_range[0]) + kaiser_range[0]
@@ -191,13 +191,14 @@ def gen_tag_data_v2(ke=0.15, seed=-1, Nt=25, Nt0 = 25, inflow_range=None, fixed_
         else:
             dd = np.ones(acqs0[0][0].shape[0], np.float32)
 
-        im0 = sim_object.grid_im_from_M(acqs0[ii][0], acqs0[ii][1], w=N_im // 2, use_gpu = use_gpu, dens = dd)
+        im0 = sim_object.grid_im_from_M(acqs0[ii][0], acqs0[ii][1], N_im = N_im, use_gpu = use_gpu, dens = dd)
         im0 = proc_im(im0, N_im, noise_scale, kaiser_beta)
 
         if (mode == 'DENSE'):
             extra_im = []
             for acq in extra_acq:
-                im_temp = sim_object.grid_im_from_M(acq[ii][0], acq[ii][1], w = 128, use_gpu = use_gpu)
+                im_temp = sim_object.grid_im_from_M(acq[ii][0], acq[ii][1], N_im = N_im, use_gpu = use_gpu, dens = dd)
+                im_temp = proc_im(im_temp, N_im, noise_scale, kaiser_beta)
                 extra_im.append(im_temp)
 
         # Generates a phase cycled image for DENSE

@@ -77,6 +77,9 @@ class TagAnimator:
 
 def get_patch_path(ims, path, is_scaled = False, width=32):
     rad = width//2
+    
+    if path.ndim == 1:
+        path = path[:, None]
 
     if not is_scaled:
         p_path = (path + 0.5)
@@ -84,6 +87,8 @@ def get_patch_path(ims, path, is_scaled = False, width=32):
         p_path[0] *= ims.shape[-1]
     else:
         p_path = path
+        
+    
 
     im_cp = np.pad(ims, pad_width=((0,0), (rad+1,rad+1), (rad+1,rad+1)), mode='constant')
 

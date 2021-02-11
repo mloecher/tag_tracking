@@ -25,7 +25,8 @@ def get_random_heart(NN = 768,
                     seed = -1,
                     img_thresh=0.20,
                     t1_lims=(900, 1200),
-                    t2_lims=(80, 400),
+                    t2_lims=(40, 70),
+                    SNR_range = (10, 30),
                     use_gpu = True,
                     ke = 0.12,
                     mode = 'gridtag',
@@ -87,8 +88,8 @@ def get_random_heart(NN = 768,
     t2 = map_1Dpoly(s, t2_lims)
 
     s_heart = np.ones(r_heart.shape[1]) * np.random.uniform(0.5, 0.7)
-    t1_heart = np.ones(r_heart.shape[1]) * np.random.uniform(1000, 1200)
-    t2_heart = np.ones(r_heart.shape[1]) * np.random.uniform(40, 70)
+    t1_heart = np.ones(r_heart.shape[1]) * np.random.uniform(t1_lims[0], t1_lims[1])
+    t2_heart = np.ones(r_heart.shape[1]) * np.random.uniform(t2_lims[0], t2_lims[1])
 
     NNa = NN//2
 
@@ -153,6 +154,15 @@ def get_random_heart(NN = 768,
 
     acqs0 = simulator.run()
 
+    # For DENSE specifically run the phase cycling acquisition
+    if (mode == 'DENSE'):
+        extra_theta = np.linspace(0, 2*np.pi, 4)[1:-1]
+        extra_acq = []
+        for theta_i in extra_theta:
+            simulator = SimInstant(sim_object, use_gpu=use_gpu)
+            simulator.sample_DENSE_PSD(rf_dir = [np.cos(theta_i), np.sin(theta_i), 0], ke=ke, kd = 0.0, acq_loc=acq_loc)
+            extra_acq.append(simulator.run())
+
     for it in range(Nt):
     
         point_mask = np.ones(s_all.size)
@@ -160,6 +170,11 @@ def get_random_heart(NN = 768,
         
         acqs0[it][0] = acqs0[it][0][point_mask > 0.5, :]
         acqs0[it][1] = acqs0[it][1][point_mask > 0.5, :]
+
+        if (mode == 'DENSE'):
+            for acq in extra_acq:
+                acq[it][0] = acq[it][0][point_mask > 0.5, :]
+                acq[it][1] = acq[it][1][point_mask > 0.5, :]
 
 
     ###### The following code is all to generate the initial tracking points
@@ -285,9 +300,7 @@ def get_random_heart(NN = 768,
         dd = get_dens(acqs0[0][0], use_gpu = use_gpu)
         dens_mod = np.median(dd)
 
-    noise_range = [4, 16]
-    noise_scale = np.random.rand() * (noise_range[1] - noise_range[0]) + noise_range[0]
-    # print('NS', noise_scale)
+    noise_scale = 0.3*256*256/N_im/np.random.uniform(SNR_range[0], SNR_range[1])
 
     kaiser_range = [2,6]
     kaiser_beta = np.random.rand() * (kaiser_range[1] - kaiser_range[0]) + kaiser_range[0]
@@ -306,7 +319,8 @@ def get_random_heart(NN = 768,
         if (mode == 'DENSE'):
             extra_im = []
             for acq in extra_acq:
-                im_temp = sim_object.grid_im_from_M(acq[ii][0], acq[ii][1], N_im = N_im, use_gpu = use_gpu)
+                im_temp = sim_object.grid_im_from_M(acq[ii][0], acq[ii][1], N_im = N_im, use_gpu = use_gpu, dens = dd)
+                im_temp = proc_im(im_temp, N_im, noise_scale, kaiser_beta)
                 extra_im.append(im_temp)
 
         # Generates a phase cycled image for DENSE
