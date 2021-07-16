@@ -2,7 +2,7 @@ import numpy as np
 
 from scipy.interpolate import griddata
 from scipy import interpolate
-from scipy.signal.windows import kaiser
+from scipy.signal.windows import kaiser, hamming
 
 from .base_im_generation import grab_random_model
 from .SimObject import SimObject
@@ -224,19 +224,25 @@ def get_full_motion_im(ke=0.15, seed=-1, Nt=25, Nt0 = 25, inflow_range=None, fix
 # Here we add noise and random blurring
 # TODO: make this a sub function with some more control over things, we can then also apply it to the DENSE images
 # Also: for DENSE should the phase cycled image have artifacts?  Possibly not, though then we are learning denoising too . . .
-def proc_im(im, N_im = 256, noise_scale = 50, kaiser_beta = 4):
+def proc_im(im, N_im = 256, noise_scale = 50, kaiser_beta = 4, do_hamming = False):
     
 
     k0 = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(im)))
-    k0 += noise_scale * (np.random.standard_normal(k0.shape) + 1j * np.random.standard_normal(k0.shape))
+    if noise_scale > 0:
+        k0 += noise_scale * (np.random.standard_normal(k0.shape) + 1j * np.random.standard_normal(k0.shape))
     
     # if np.random.rand() < blur_chance:
     #     win_beta = np.random.rand() * (beta_lims[1] - beta_lims[0]) + beta_lims[0]
     #     window = kaiser(N_im, win_beta, sym=False)
     #     k0 *= np.outer(window, window)
 
-    window = kaiser(N_im, kaiser_beta, sym=False)
-    k0 *= np.outer(window, window)
+    if kaiser_beta > 0:
+        window = kaiser(N_im, kaiser_beta, sym=False)
+        k0 *= np.outer(window, window)
+
+    if do_hamming:
+        window = hamming(N_im, sym=False)
+        k0 *= np.outer(window, window)
 
     im = np.fft.ifftshift(np.fft.ifft2(np.fft.fftshift(k0)))
     

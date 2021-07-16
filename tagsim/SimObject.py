@@ -2,6 +2,8 @@ import hdf5storage
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import io
+import h5py
 
 import sys, os
 
@@ -29,6 +31,52 @@ class SimObject:
         self.period = 1000  # periodic phantom interval in [ms]
         self.dt = self.period / self.Nt
         self.tt = np.arange(self.Nt) * self.dt
+
+    
+    def gen_solo_cardiac(self, Nz=4, NN=512, t1=800, t2=80, inflow=0, Rmax = 35):
+
+        self.Nt = 25
+        self.dt = self.period / self.Nt
+        self.tt = np.arange(self.Nt) * self.dt
+        self.fov = np.array([80, 80, 8.0]) * 1.0e-3
+
+        zz = np.linspace(-0.5, 0.5, Nz)
+
+        data_loc = os.path.dirname(__file__) + "/cardiac_data/outdata_v11.mat"
+        
+        
+        data = h5py.File(data_loc,'r')
+        x_myo = np.array(data["xa"])
+        y_myo = np.array(data["ya"])
+        z_myo = np.array(data["za"])
+        data.close()
+
+        x_myo /= self.fov[0] * 1.0e3
+        y_myo /= self.fov[1] * 1.0e3
+        zrange = z_myo.max() - z_myo.min()
+        z_myo = (z_myo - zrange/2) / zrange
+
+        myo_pos = np.array([0.00, 0.00])
+        myo_rad = np.array([x_myo.max() - x_myo.min(), y_myo.max() - y_myo.min()]) / 2.0
+
+        x_myo += myo_pos[0]
+        y_myo += myo_pos[1]
+
+        r_myo = np.stack((x_myo, y_myo, z_myo), 2)
+        s_myo = np.ones(r_myo.shape[1]) / r_myo.shape[1] / 100 * Nz * NN * NN
+        
+        # scale for density
+        rad_myo = np.hypot(x_myo[0], y_myo[0])
+        s_myo *= rad_myo
+
+        r_all = r_myo
+        s_all = s_myo
+
+        self.r = r_all
+        self.sig0 = s_all
+        self.T1 = np.ones_like(self.sig0) * t1
+        self.T2 = np.ones_like(self.sig0) * t2
+        self.r_myo = r_myo
 
     def gen_standard_cardiac(self, Nz=8, NN=512, t1=800, t2=80, inflow=0):
 
