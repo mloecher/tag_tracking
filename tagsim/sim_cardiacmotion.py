@@ -32,7 +32,9 @@ def get_random_heart(NN = 768,
                     mode = 'gridtag',
                     do_density=True,
                     new_sim = True,
-                    random_pts = False,):
+                    random_pts = False,
+                    TE = .03,
+                    crop_N = None):
 
     final_mask = make_random_mask(NN=NN, rseed=rseed)
     img = get_random_image(basepath, NN=NN, seed=seed)
@@ -150,7 +152,7 @@ def get_random_heart(NN = 768,
         else:
             simulator.sample_tagging1331_v2_PSD(ke=ke, acq_loc=acq_loc)
     elif (mode == 'DENSE'):
-        simulator.sample_DENSE_PSD(ke=ke, kd = 0.0, acq_loc=acq_loc)
+        simulator.sample_DENSE_PSD(ke=ke, kd = 0.0, acq_loc=acq_loc, TE = TE)
 
     acqs0 = simulator.run()
 
@@ -160,7 +162,7 @@ def get_random_heart(NN = 768,
         extra_acq = []
         for theta_i in extra_theta:
             simulator = SimInstant(sim_object, use_gpu=use_gpu)
-            simulator.sample_DENSE_PSD(rf_dir = [np.cos(theta_i), np.sin(theta_i), 0], ke=ke, kd = 0.0, acq_loc=acq_loc)
+            simulator.sample_DENSE_PSD(rf_dir = [np.cos(theta_i), np.sin(theta_i), 0], ke=ke, kd = 0.0, acq_loc=acq_loc, TE=TE)
             extra_acq.append(simulator.run())
 
     for it in range(Nt):
@@ -332,6 +334,12 @@ def get_random_heart(NN = 768,
 
         all_imc[ii] = im0
         all_im[ii] = np.abs(im0)
+
+    if crop_N is not None:
+        start_pos = N_im//2 - crop_N//2
+        all_im = all_im[:,start_pos:start_pos+crop_N, start_pos:start_pos+crop_N]
+        all_imc = all_imc[:,start_pos:start_pos+crop_N, start_pos:start_pos+crop_N]
+        all_im_pc = all_im_pc[:,start_pos:start_pos+crop_N, start_pos:start_pos+crop_N]
 
     return {
         "ims": all_im,
